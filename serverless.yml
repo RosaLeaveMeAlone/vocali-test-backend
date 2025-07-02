@@ -1,0 +1,118 @@
+service: vocali-api
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: 'dev'
+  region: 'us-east-1'
+  memorySize: 128
+  timeout: 3
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:GetItem
+            - dynamodb:Scan
+            - dynamodb:DeleteItem
+          Resource: 
+            - arn:aws:dynamodb:${self:provider.region}:*:table/UsersTable
+            - arn:aws:dynamodb:${self:provider.region}:*:table/UsersTable/index/*   
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
+            - cognito-idp:AdminInitiateAuth
+            - cognito-idp:SignUp
+            - cognito-idp:ConfirmSignUp
+            - cognito-idp:AdminConfirmSignUp
+            - cognito-idp:InitiateAuth
+            - cognito-idp:AdminRespondToAuthChallenge
+          Resource: !GetAtt CognitoUserPool.Arn 
+
+functions:
+  register:
+    handler: app/handlers/register.handler
+    description: function to register a user
+    events:
+      - http:
+          path: /register
+          method: post
+          cors:
+            origin: '*' # or '*' for all origins
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  login:
+    handler: app/handlers/login.handler
+    description: function to login a user
+    events:
+      - http:
+          path: /login
+          method: options
+          cors:
+            origin: '*' # or '*' for all origins
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+
+resources:
+  Resources:
+    UserTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UsersTable
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: vocali-user-pool
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: vocali-app-client
+        UserPoolId: !Ref CognitoUserPool
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_SRP_AUTH
+
+  Outputs:
+    UserPoolId:
+      Value: !Ref CognitoUserPool
+    UserPoolClientId:
+      Value: !Ref CognitoUserPoolClient

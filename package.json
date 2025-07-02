@@ -1,0 +1,24 @@
+{
+  "name": "sls-artisan",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.150",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.840.0",
+    "@aws-sdk/client-dynamodb": "^3.839.0",
+    "@aws-sdk/lib-dynamodb": "^3.839.0",
+    "aws-lambda": "^1.0.7",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.67"
+  }
+}
