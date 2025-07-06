@@ -2,6 +2,7 @@ import z from "zod";
 import { createUserModel, User } from "../models/user.model";
 import { CognitoService, createCognitoService } from "../services/cognito.service";
 import { UserType } from "../interfaces/user.type";
+import { BaseHandler, ResponseBuilder } from "../utils";
 
 const RegisterUserSchema = z.object({
     password: z.string()
@@ -18,23 +19,18 @@ const RegisterUserSchema = z.object({
 
 export type RegisterSchemaType = z.infer<typeof RegisterUserSchema>;
 
-class RegisterHandler {
-
+class RegisterHandler extends BaseHandler {
     constructor(
         private readonly userModel: User,
         private readonly cognitoService: CognitoService
-    ) {}
+    ) {
+        super();
+    }
 
     async processEvent(event: any) {
-        console.log("Register handler invoked ");
-
-        const body = JSON.parse(event.body);
-
-        const validatedBody = RegisterUserSchema.parse(body);
+        const validatedBody = this.parseBody(event, RegisterUserSchema);
 
         const cognitoResponse = await this.cognitoService.registerUser(validatedBody.email, validatedBody.password);
-
-        // const user = await this.userModel.createUser(validatedBody);
 
         const userToCreate: UserType = {
             email: validatedBody.email,
@@ -43,57 +39,13 @@ class RegisterHandler {
 
         const user = await this.userModel.createUser(userToCreate);
 
-
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*', // or '*'
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
-            },
-            body: JSON.stringify({
-                message: "Registration successful",
-                data: user,
-            }),
-        };
+        return ResponseBuilder.success(user, "Registration successful");
     }
-
 }
 
 export async function handler(event: any) {
-    try {
-        const user = createUserModel();
-        const cognitoService = createCognitoService();
-        const instance = new RegisterHandler(user,cognitoService);
-        return await instance.processEvent(event);
-    } catch (error:any) {
-        console.error("Error in Register handler:", error);
-        
-        if (error instanceof z.ZodError) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({
-                    message: "Validation Error",
-                    errors: error.errors,
-                }),
-            };
-        }
-        
-        // Handle Cognito specific errors
-        if (error.name === 'UsernameExistsException') {
-            return {
-                statusCode: 409,
-                body: JSON.stringify({
-                    message: "User already exists",
-                }),
-            };
-        }
-        
-        return {
-            statusCode: 500,
-            body: JSON.stringify({
-                message: "Internal Server Error",
-            }),
-        };
-    }
+    const user = createUserModel();
+    const cognitoService = createCognitoService();
+    const instance = new RegisterHandler(user, cognitoService);
+    return await instance.handle(event);
 }

@@ -143,6 +143,18 @@ functions:
       SPEECHMATICS_API_KEY: ${env:SPEECHMATICS_API_KEY}
       USER_POOL_ID: !Ref CognitoUserPool
       CLIENT_ID: !Ref CognitoUserPoolClient
+  test:
+    handler: app/handlers/test.handler
+    description: function to test that everything is working
+    events:
+      - http:
+          path: /test
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
 
 resources:
   Resources:

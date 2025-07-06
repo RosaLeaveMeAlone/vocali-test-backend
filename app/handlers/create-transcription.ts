@@ -1,6 +1,7 @@
 import z from "zod";
 import { createTranscriptionModel, Transcription } from "../models/transcription.model";
 import { TranscriptionType } from "../interfaces/transcription.type";
+import { BaseHandler, DEFAULT_CORS_HEADERS } from "../utils";
 
 const CreateTranscriptionSchema = z.object({
     content: z.string()
@@ -13,18 +14,16 @@ const CreateTranscriptionSchema = z.object({
 
 export type CreateTranscriptionSchemaType = z.infer<typeof CreateTranscriptionSchema>;
 
-class CreateTranscriptionHandler {
+class CreateTranscriptionHandler extends BaseHandler {
 
     constructor(
         private readonly transcriptionModel: Transcription
-    ) {}
+    ) {
+        super();
+    }
 
     async processEvent(event: any) {
-        console.log("Create transcription handler invoked");
-
-        const body = JSON.parse(event.body);
-
-        const validatedBody = CreateTranscriptionSchema.parse(body);
+        const validatedBody = this.parseBody(event, CreateTranscriptionSchema);
 
         const transcriptionToCreate: TranscriptionType = {
             content: validatedBody.content,
@@ -34,52 +33,17 @@ class CreateTranscriptionHandler {
 
         return {
             statusCode: 201,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
-            },
+            headers: { ...DEFAULT_CORS_HEADERS },
             body: JSON.stringify({
                 message: "Transcription created successfully",
-                data: transcription,
-            }),
+                data: transcription
+            })
         };
     }
 }
 
 export async function handler(event: any) {
-    try {
-        const transcriptionModel = createTranscriptionModel();
-        const instance = new CreateTranscriptionHandler(transcriptionModel);
-        return await instance.processEvent(event);
-    } catch (error: any) {
-        console.error("Error in Create transcription handler:", error);
-        
-        if (error instanceof z.ZodError) {
-            return {
-                statusCode: 400,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST'
-                },
-                body: JSON.stringify({
-                    message: "Validation Error",
-                    errors: error.errors,
-                }),
-            };
-        }
-        
-        return {
-            statusCode: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST'
-            },
-            body: JSON.stringify({
-                message: "Internal Server Error",
-            }),
-        };
-    }
+    const transcriptionModel = createTranscriptionModel();
+    const instance = new CreateTranscriptionHandler(transcriptionModel);
+    return await instance.handle(event);
 }

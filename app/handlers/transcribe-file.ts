@@ -1,92 +1,68 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { BatchClient } from '@speechmatics/batch-client';
+import z from 'zod';
 import { TranscriptionType } from '../interfaces/transcription.type';
 import { createTranscriptionModel, Transcription } from '../models/transcription.model';
+import { BaseHandler, ResponseBuilder } from '../utils';
 
+const TranscribeFileSchema = z.object({
+    fileData: z.string().min(1, "File data is required"),
+    fileName: z.string().min(1, "File name is required"),
+    language: z.string().optional().default('es'),
+    format: z.string().optional().default('json-v2'),
+});
 
-class TranscribeFileHandler {
-    
-    private corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS'
-    };
+class TranscribeFileHandler extends BaseHandler {
     
     constructor(
         private readonly transcriptionModel: Transcription,
-    ) {}
+    ) {
+        super();
+    }
 
     async processEvent(event: APIGatewayProxyEvent) {
-        console.log("TranscribeFileHandler handler invoked ");
+        const validatedBody = this.parseBody(event, TranscribeFileSchema);
 
-        try {
-            const body = JSON.parse(event.body ? event.body : '{}');
-    
-            const { fileData, fileName, language = 'es', format = 'json-v2' } = body;
-    
-            if (!fileData || !fileName) {
-                return {
-                    statusCode: 400,
-                    headers: this.corsHeaders,
-                    body: JSON.stringify({ message: 'Missing fileData or fileName' })
-                };
-            }
-    
-            const client = new BatchClient({
-                apiKey: process.env.SPEECHMATICS_API_KEY!,
-                appId: 'vocali-lambda-transcription'
-            });
-    
-            console.log('Sending file for transcription...');
-            // Convert base64 fileData to Buffer and create Blob
-            const buffer = Buffer.from(fileData, 'base64');
-            const blob = new Blob([buffer]);
-            const file = new File([blob], fileName);
-    
-            const response = await client.transcribe(
-                file,
-                {
-                    transcription_config: { language }
-                },
-                format
-            );
-    
-            console.log('Transcription finished!');
-    
-            const transcriptionContent =
-                    typeof response === 'string'
-                        ? response
-                        : response.results.map((r: any) => r.alternatives?.[0].content).join(' ');
+        const client = new BatchClient({
+            apiKey: process.env.SPEECHMATICS_API_KEY!,
+            appId: 'vocali-lambda-transcription'
+        });
 
-            const transcriptionToCreate: TranscriptionType = {
-                content: transcriptionContent,
-            };
+        console.log('Sending file for transcription...');
+        // Convert base64 fileData to Buffer and create Blob
+        const buffer = Buffer.from(validatedBody.fileData, 'base64');
+        const blob = new Blob([buffer]);
+        const file = new File([blob], validatedBody.fileName);
 
-            const transcription = await this.transcriptionModel.createTranscription(transcriptionToCreate);
-    
-            return {
-                    statusCode: 200,
-                    headers: this.corsHeaders,
-                    body: JSON.stringify({
-                        message: 'Transcription successful',
-                        transcription: transcription,
-                    })
-                };
-            
-        } catch (error) {
-            console.error('Transcription error:', error);
-            return {
-                statusCode: 500,
-                headers: this.corsHeaders,
-                body: JSON.stringify({ message: 'Internal Server Error' })
-            };
-        }
+        const response = await client.transcribe(
+            file,
+            {
+                transcription_config: { language: validatedBody.language }
+            },
+            validatedBody.format
+        );
 
+        console.log('Transcription finished!');
+
+        const transcriptionContent =
+                typeof response === 'string'
+                    ? response
+                    : response.results.map((r: any) => r.alternatives?.[0].content).join(' ');
+
+        const transcriptionToCreate: TranscriptionType = {
+            content: transcriptionContent,
+        };
+
+        const transcription = await this.transcriptionModel.createTranscription(transcriptionToCreate);
+
+        return ResponseBuilder.success({
+            transcription: transcription,
+        }, 'Transcription successful');
     }
 }
 
 export async function handler(event: APIGatewayProxyEvent) {
     const transcriptionModel = createTranscriptionModel();
     const instance = new TranscribeFileHandler(transcriptionModel);
-    return await instance.processEvent(event);
+    return await instance.handle(event);
 }

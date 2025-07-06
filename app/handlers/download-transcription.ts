@@ -1,29 +1,20 @@
 import { createTranscriptionModel, Transcription } from '../models/transcription.model';
+import { BaseHandler, ResponseBuilder } from '../utils';
 
-class DownloadTranscriptionsHandler {
+class DownloadTranscriptionsHandler extends BaseHandler {
 
     constructor(
         private readonly transcriptionModel: Transcription
-    ) {}
+    ) {
+        super();
+    }
 
     async processEvent(event: any) {
-        console.log("Download handler invoked");
-
         const transcriptionId = event.pathParameters?.transcriptionId;
 
         // Validar que existe el ID
         if (!transcriptionId) {
-            return {
-                statusCode: 400,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                    'Access-Control-Allow-Methods': 'OPTIONS,GET'
-                },
-                body: JSON.stringify({
-                    message: "Transcription ID is required",
-                }),
-            };
+            return ResponseBuilder.error(400, "Transcription ID is required");
         }
 
         // Obtener la transcripción
@@ -31,17 +22,7 @@ class DownloadTranscriptionsHandler {
 
         // Verificar que existe
         if (!transcription) {
-            return {
-                statusCode: 404,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                    'Access-Control-Allow-Methods': 'OPTIONS,GET'
-                },
-                body: JSON.stringify({
-                    message: "Transcription not found",
-                }),
-            };
+            return ResponseBuilder.notFoundError("Transcription not found");
         }
 
         // Generar contenido del archivo .txt
@@ -79,23 +60,7 @@ Generado por Sistema de Transcripciones`;
 }
 
 export async function handler(event: any) {
-    try {
-        const transcriptionModel = createTranscriptionModel();
-        const instance = new DownloadTranscriptionsHandler(transcriptionModel); // CORREGIDO: era ListTranscriptionsHandler
-        return await instance.processEvent(event);
-    } catch (error: any) {
-        console.error("Error in Download transcription handler:", error);
-        
-        return {
-            statusCode: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,GET'
-            },
-            body: JSON.stringify({
-                message: "Internal Server Error",
-            }),
-        };
-    }
+    const transcriptionModel = createTranscriptionModel();
+    const instance = new DownloadTranscriptionsHandler(transcriptionModel);
+    return await instance.handle(event);
 }

@@ -1,5 +1,6 @@
 import z from "zod";
 import { createTranscriptionModel, Transcription } from "../models/transcription.model";
+import { BaseHandler, ResponseBuilder } from "../utils";
 
 const ListTranscriptionsSchema = z.object({
     limit: z.string()
@@ -13,15 +14,15 @@ const ListTranscriptionsSchema = z.object({
 
 export type ListTranscriptionsSchemaType = z.infer<typeof ListTranscriptionsSchema>;
 
-class ListTranscriptionsHandler {
+class ListTranscriptionsHandler extends BaseHandler {
 
     constructor(
         private readonly transcriptionModel: Transcription
-    ) {}
+    ) {
+        super();
+    }
 
     async processEvent(event: any) {
-        console.log("List transcriptions handler invoked");
-
         // Obtener parámetros de query string
         const queryParams = event.queryStringParameters || {};
 
@@ -32,54 +33,12 @@ class ListTranscriptionsHandler {
             validatedParams.nextToken
         );
 
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,GET'
-            },
-            body: JSON.stringify({
-                message: "Transcriptions retrieved successfully",
-                data: result,
-            }),
-        };
+        return ResponseBuilder.success(result, "Transcriptions retrieved successfully");
     }
 }
 
 export async function handler(event: any) {
-    try {
-        const transcriptionModel = createTranscriptionModel();
-        const instance = new ListTranscriptionsHandler(transcriptionModel);
-        return await instance.processEvent(event);
-    } catch (error: any) {
-        console.error("Error in List transcriptions handler:", error);
-        
-        if (error instanceof z.ZodError) {
-            return {
-                statusCode: 400,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                    'Access-Control-Allow-Methods': 'OPTIONS,GET'
-                },
-                body: JSON.stringify({
-                    message: "Validation Error",
-                    errors: error.errors,
-                }),
-            };
-        }
-        
-        return {
-            statusCode: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'OPTIONS,GET'
-            },
-            body: JSON.stringify({
-                message: "Internal Server Error",
-            }),
-        };
-    }
+    const transcriptionModel = createTranscriptionModel();
+    const instance = new ListTranscriptionsHandler(transcriptionModel);
+    return await instance.handle(event);
 }
