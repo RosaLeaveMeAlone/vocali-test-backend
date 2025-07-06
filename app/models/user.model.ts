@@ -1,4 +1,3 @@
-import { RegisterSchemaType } from "../handlers/register";
 import { UserType } from "../interfaces/user.type";
 import { createUserRepository, UserRepository } from "../repositories/user.repository";
 

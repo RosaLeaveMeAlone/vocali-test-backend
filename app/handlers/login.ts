@@ -23,7 +23,7 @@ class LoginHandler {
         
         // Authenticate with Cognito
         const authResult = await this.cognitoService.loginUser(validatedBody.email, validatedBody.password);
-        
+        console.log(authResult);
         // Optionally fetch additional user data from DynamoDB
         const user = await this.userModel.getUserByEmail(validatedBody.email);
 

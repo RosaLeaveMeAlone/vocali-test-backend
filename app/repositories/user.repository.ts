@@ -1,7 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand, QueryCommand  } from "@aws-sdk/lib-dynamodb";
 import createDynamoDBClient from "../clients/createDynamoDBClient";
-import { RegisterSchemaType } from "../handlers/register";
 import { UserType } from "../interfaces/user.type";
 import { v4 as uuid } from 'uuid';
 
@@ -16,8 +15,6 @@ export class UserRepository {
 
     //! Coloco este nombre como DTO para verlo como si estuviera trabajando con NestJS
     async createUser(userDto: UserType): Promise<UserType> {
-        // Here you would typically hash the password and save the user to a database
-        // For simplicity, we are just returning a success message
         const { email, sub } = userDto;
 
         const userItem = {
@@ -28,7 +25,7 @@ export class UserRepository {
         };
 
         const command = new PutCommand({
-            TableName: 'UsersTable',
+            TableName: this.tableName,
             Item: userItem,
         });
 

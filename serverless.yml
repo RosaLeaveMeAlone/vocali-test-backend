@@ -5,8 +5,8 @@ provider:
   runtime: nodejs20.x
   stage: 'dev'
   region: 'us-east-1'
-  memorySize: 128
-  timeout: 3
+  memorySize: 512
+  timeout: 29
   iam:
     role:
       statements:
@@ -21,6 +21,8 @@ provider:
           Resource: 
             - arn:aws:dynamodb:${self:provider.region}:*:table/UsersTable
             - arn:aws:dynamodb:${self:provider.region}:*:table/UsersTable/index/*   
+            - arn:aws:dynamodb:${self:provider.region}:*:table/TranscriptionTable
+            - arn:aws:dynamodb:${self:provider.region}:*:table/TranscriptionTable/index/*
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -55,13 +57,90 @@ functions:
     events:
       - http:
           path: /login
-          method: options
+          method: post
           cors:
             origin: '*' # or '*' for all origins
             headers:
               - Content-Type
               - Authorization
     environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  transcribe-file:
+    handler: app/handlers/transcribe-file.handler
+    description: function to transcribe a file
+    events:
+      - http:
+          path: /transcribe-file
+          method: post
+          cors:
+            origin: '*' 
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      SPEECHMATICS_API_KEY: ${env:SPEECHMATICS_API_KEY}
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  get-transcriptions:
+    handler: app/handlers/get-transcriptions.handler
+    description: function to get transcriptions
+    events:
+      - http:
+          path: /transcriptions
+          method: get
+          cors:
+            origin: '*' 
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  download-transcription:
+    handler: app/handlers/download-transcription.handler
+    description: function to download a transcription file
+    events:
+      - http:
+          path: /transcriptions/{transcriptionId}/download
+          method: get
+          cors:
+            origin: '*' 
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  create-transcription:
+    handler: app/handlers/create-transcription.handler
+    description: function to create a transcription by raw content
+    events:
+      - http:
+          path: /transcriptions
+          method: post
+          cors:
+            origin: '*' 
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      USER_POOL_ID: !Ref CognitoUserPool
+      CLIENT_ID: !Ref CognitoUserPoolClient
+  speechmatics-token:
+    handler: app/handlers/speechmatic-token.handler
+    description: function to get speechmatic token
+    events:
+      - http:
+          path: /speechmatics-token
+          method: post
+          cors:
+            origin: '*' 
+            headers:
+              - Content-Type
+              - Authorization
+    environment:
+      SPEECHMATICS_API_KEY: ${env:SPEECHMATICS_API_KEY}
       USER_POOL_ID: !Ref CognitoUserPool
       CLIENT_ID: !Ref CognitoUserPoolClient
 
@@ -82,6 +161,22 @@ resources:
           - AttributeName: SK
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
+    TranscriptionTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: TranscriptionTable
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:

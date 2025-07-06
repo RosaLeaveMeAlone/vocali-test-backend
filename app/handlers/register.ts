@@ -21,7 +21,7 @@ export type RegisterSchemaType = z.infer<typeof RegisterUserSchema>;
 class RegisterHandler {
 
     constructor(
-        private readonly userModerl: User,
+        private readonly userModel: User,
         private readonly cognitoService: CognitoService
     ) {}
 
@@ -34,16 +34,14 @@ class RegisterHandler {
 
         const cognitoResponse = await this.cognitoService.registerUser(validatedBody.email, validatedBody.password);
 
-        // const user = await this.userModerl.createUser(validatedBody);
+        // const user = await this.userModel.createUser(validatedBody);
 
         const userToCreate: UserType = {
             email: validatedBody.email,
             sub: cognitoResponse.UserSub,
         };
 
-        console.log(userToCreate);
-
-        const user = await this.userModerl.createUser(userToCreate);
+        const user = await this.userModel.createUser(userToCreate);
 
 
         return {
