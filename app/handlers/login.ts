@@ -21,11 +21,13 @@ class LoginHandler extends BaseHandler {
     async processEvent(event: any) {
         const validatedBody = this.parseBody(event, LoginUserSchema);
         
+        const emailLowercase = validatedBody.email.toLowerCase();
+        
         // Authenticate with Cognito
-        const authResult = await this.cognitoService.loginUser(validatedBody.email, validatedBody.password);
+        const authResult = await this.cognitoService.loginUser(emailLowercase, validatedBody.password);
         console.log(authResult);
         // Optionally fetch additional user data from DynamoDB
-        const user = await this.userModel.getUserByEmail(validatedBody.email);
+        const user = await this.userModel.getUserByEmail(emailLowercase);
 
         return ResponseBuilder.success({
             token: authResult.AuthenticationResult?.IdToken,

@@ -30,10 +30,12 @@ class RegisterHandler extends BaseHandler {
     async processEvent(event: any) {
         const validatedBody = this.parseBody(event, RegisterUserSchema);
 
-        const cognitoResponse = await this.cognitoService.registerUser(validatedBody.email, validatedBody.password);
+        const emailLowercase = validatedBody.email.toLowerCase();
+
+        const cognitoResponse = await this.cognitoService.registerUser(emailLowercase, validatedBody.password);
 
         const userToCreate: UserType = {
-            email: validatedBody.email,
+            email: emailLowercase,
             sub: cognitoResponse.UserSub,
         };
 
